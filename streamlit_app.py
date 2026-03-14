@@ -9,7 +9,7 @@ st.markdown("""
     .stButton>button { width: 100%; height: 3em; font-size: 20px; }
     .stMetric { background-color: #f0f2f6; padding: 10px; border-radius: 10px; }
     </style>
-    """, unsafe_allow_exists=True)
+    """, unsafe_allow_html=True)
 
 st.title("🏋️ Unser Trainingsplan")
 
