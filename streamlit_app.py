@@ -81,7 +81,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🏋️ Gym Plan: Nico & Jessi")
+st.title("🏋️ Gym Plan: Nico & Jessie")
 
 # --- VERBINDUNG ZU GOOGLE SHEETS ---
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -91,7 +91,7 @@ col_n1, col_n2 = st.columns(2)
 with col_n1:
     p1 = st.text_input("Person 1", "Nico")
 with col_n2:
-    p2 = st.text_input("Person 2", "Jessi")
+    p2 = st.text_input("Person 2", "Jessie")
 
 user_choice = st.selectbox("Wer trainiert?", [p1, p2])
 
