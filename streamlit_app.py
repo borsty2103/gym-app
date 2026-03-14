@@ -5,13 +5,49 @@ from streamlit_gsheets import GSheetsConnection
 # Seiteneinstellungen
 st.set_page_config(page_title="Gym Progress Ultimate", page_icon="💪", layout="centered")
 
-# CSS für Design & maximale Lesbarkeit am Handy
+# CSS für maximale Lesbarkeit und Kontrast (Fix für Weiß-auf-Weiß)
 st.markdown("""
     <style>
-    [data-testid="stMetric"] { background-color: #ffffff; border: 2px solid #eeeeee; padding: 15px; border-radius: 15px; }
-    [data-testid="stMetricValue"] { color: #000000 !important; font-size: 1.6rem !important; }
-    .cardio-box { background-color: #f0f2f6; border-left: 5px solid #ff4b4b; padding: 15px; margin: 10px 0; border-radius: 10px; font-weight: bold; }
-    .stTabs [data-baseweb="tab"] { font-size: 18px; font-weight: bold; }
+    /* Karten-Design mit festen Kontrasten */
+    [data-testid="stMetric"] {
+        background-color: #ffffff !important;
+        border: 1px solid #dddddd !important;
+        padding: 20px !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+    }
+    /* Erzwinge schwarze Schriftfarbe für alle Metrik-Elemente */
+    [data-testid="stMetricLabel"] {
+        color: #333333 !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stMetricValue"] {
+        color: #000000 !important;
+        font-size: 1.8rem !important;
+        font-weight: 800 !important;
+    }
+    [data-testid="stMetricDelta"] {
+        color: #555555 !important;
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+    }
+    /* Cardio Box Design */
+    .cardio-box {
+        background-color: #f0f2f6;
+        border-left: 5px solid #ff4b4b;
+        color: #1f2937;
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    /* Tabs Schriftgröße */
+    .stTabs [data-baseweb="tab"] {
+        font-size: 18px;
+        font-weight: bold;
+    }
     </style>
     """, unsafe_allow_html=True)
 
