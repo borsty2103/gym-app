@@ -5,10 +5,9 @@ from streamlit_gsheets import GSheetsConnection
 # Seiteneinstellungen
 st.set_page_config(page_title="Gym Progress Ultimate", page_icon="💪", layout="centered")
 
-# CSS für maximale Lesbarkeit und festen Kontrast (Kein Weiß-auf-Weiß mehr!)
+# CSS für maximale Lesbarkeit und festen Kontrast
 st.markdown("""
     <style>
-    /* Karten-Design */
     [data-testid="stMetric"] {
         background-color: #ffffff !important;
         border: 1px solid #dddddd !important;
@@ -16,23 +15,8 @@ st.markdown("""
         border-radius: 12px !important;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
     }
-    /* Schwarze Schriftfarbe für alle Texte in den Karten */
-    [data-testid="stMetricLabel"] {
-        color: #333333 !important;
-        font-size: 1.1rem !important;
-        font-weight: 600 !important;
-    }
-    [data-testid="stMetricValue"] {
-        color: #000000 !important;
-        font-size: 1.8rem !important;
-        font-weight: 800 !important;
-    }
-    [data-testid="stMetricDelta"] {
-        color: #555555 !important;
-        font-size: 1rem !important;
-        font-weight: 500 !important;
-    }
-    /* Cardio Box Design */
+    [data-testid="stMetricLabel"] { color: #333333 !important; font-size: 1.1rem !important; font-weight: 600 !important; }
+    [data-testid="stMetricValue"] { color: #000000 !important; font-size: 1.8rem !important; font-weight: 800 !important; }
     .cardio-box {
         background-color: #f0f2f6;
         border-left: 5px solid #ff4b4b;
@@ -43,138 +27,150 @@ st.markdown("""
         font-weight: bold;
         font-size: 1.1rem;
     }
-    /* Tabs Schriftgröße */
-    .stTabs [data-baseweb="tab"] {
-        font-size: 18px;
-        font-weight: bold;
-    }
+    .stTabs [data-baseweb="tab"] { font-size: 18px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🏋️ Unser Trainingsplan (ABSOLUT VOLLSTÄNDIG)")
+st.title("🏋️ Trainingsplan: Nico & Jessi")
 
-# Google Sheets Verbindung
+# --- VERBINDUNG ZU GOOGLE SHEETS ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- SETUP BEREICH ---
+# --- SETUP PERSONEN ---
 col_n1, col_n2 = st.columns(2)
 with col_n1:
-    p1 = st.text_input("Name Person 1", "Elias")
+    p1 = st.text_input("Name Person 1", "Nico")
 with col_n2:
-    p2 = st.text_input("Name Person 2", "Sarah")
+    p2 = st.text_input("Name Person 2", "Jessi")
 
 user_choice = st.selectbox("Wer trainiert gerade?", [p1, p2])
+
+# AUTOMATISCHES LADEN AUS DER CLOUD
+@st.cache_data(ttl=2)
+def load_data(user):
+    try:
+        data = conn.read(worksheet=user)
+        if not data.empty:
+            return data.iloc[0].to_dict()
+    except:
+        return {}
+    return {}
+
+saved_values = load_data(user_choice)
 woche = st.select_slider("Trainingswoche", options=range(1, 7))
 
-# Modus-Umschalter für Oberkörper
 st.markdown("---")
-ok_modus = st.radio(
-    "Modus für Oberkörper-Tage (Di/Do):",
-    ["Ausdauer (55% Gewicht | 15-20 Wdh)", "Muskelaufbau (75%+ Gewicht | 8-12 Wdh)"],
-    horizontal=True
-)
+ok_modus = st.radio("Modus für Oberkörper-Tage (Di/Do):", 
+                    ["Ausdauer (55% | 15-20 Wdh)", "Muskelaufbau (75%+ | 8-12 Wdh)"], horizontal=True)
 is_heavy_ok = "Muskelaufbau" in ok_modus
 st.markdown("---")
 
-# --- SIDEBAR 1RM SETUP (Alle 20 Übungen einzeln) ---
-st.sidebar.header(f"⚙️ 1RM Setup: {user_choice}")
-def g1(label, default, k):
-    return st.sidebar.number_input(f"1RM {label} (kg)", value=float(default), step=2.5, key=f"{user_choice}_{k}")
+# --- SIDEBAR: ÜBUNGEN VERWALTEN ---
+st.sidebar.header("🛠️ Übungen & Cloud-Management")
 
-rms = {
-    "BS": g1("Beinstrecker", 100, "bs"),
-    "HS": g1("Hack Squat", 60, "hs"),
-    "BP": g1("Beinpresse", 80, "bp"),
-    "BSS": g1("Bulg. Split", 20, "bss"),
-    "BB": g1("Beinbeuger", 40, "bb"),
-    "AD": g1("Adduktoren", 70, "ad"),
-    "SS": g1("Sissy Squat", 10, "ss"),
-    "RE": g1("Rudern Eng", 50, "re"),
-    "RB": g1("Rudern Breit", 50, "rb"),
-    "BR": g1("Brustpresse", 40, "br"),
-    "SH": g1("Seitheben", 15, "sh"),
-    "HSH": g1("Hint. Schulter", 15, "hsh"),
-    "TD": g1("Trizeps", 20, "td"),
-    "BC": g1("Incline Bizeps", 15, "bc"),
-    "HC": g1("Hammer Curls", 15, "hc"),
-    "HT": g1("Hipthrusts", 120, "ht"),
-    "RDL": g1("RDL", 80, "rdl"),
-    "ABD": g1("Abduktoren", 80, "abd"),
-    "KB": g1("Kickbacks", 15, "kb"),
-    "KB45": g1("Kickbacks 45°", 15, "kb45")
-}
+# 1. Bestehende Übungen umbenennen
+with st.sidebar.expander("Bestehende Übungen umbenennen"):
+    base_keys = ["BS", "HS", "BP", "BSS", "BB", "AD", "SS", "RE", "RB", "BR", "SH", "HSH", "TD", "BC", "HC", "HT", "RDL", "ABD", "KB", "KB45"]
+    default_names = {
+        "BS": "Beinstrecker", "HS": "Hack Squat", "BP": "Beinpresse", "BSS": "Bulgarian Split",
+        "BB": "Beinbeuger", "AD": "Adduktoren", "SS": "Sissy Squat", "RE": "Rudern Eng",
+        "RB": "Rudern Breit", "BR": "Brustpresse", "SH": "Seitheben", "HSH": "Hint. Schulter",
+        "TD": "Trizeps", "BC": "Incline Bizeps", "HC": "Hammer Curls", "HT": "Hipthrusts",
+        "RDL": "RDL", "ABD": "Abduktoren", "KB": "Kickbacks", "KB45": "Kickbacks 45°"
+    }
+    name_map = {}
+    for k in base_keys:
+        name_map[k] = st.text_input(f"Name für {k}", saved_values.get(f"NAME_{k}", default_names[k]), key=f"edit_{k}")
 
-if st.sidebar.button("✅ WERTE IN CLOUD SPEICHERN"):
-    df = pd.DataFrame([rms])
-    df['Nutzer'] = user_choice
+# 2. Neue Übungen hinzufügen (5 Slots) - Werden automatisch im Sheet gespeichert
+st.sidebar.markdown("---")
+st.sidebar.subheader("➕ Neue Übungen (Cloud-Sync)")
+extra_exercises = {}
+for i in range(1, 6):
+    with st.sidebar.expander(f"Zusatz-Übung {i}"):
+        ex_name = st.text_input(f"Name Übung {i}", saved_values.get(f"EXTRA_NAME_{i}", ""), key=f"ex_name_{i}")
+        ex_day = st.selectbox(f"Tag für Übung {i}", ["Keiner", "Mo: Beine", "Di: OK", "Mi: PO", "Do: OK", "Fr: Beine"], 
+                              index=0 if f"EXTRA_DAY_{i}" not in saved_values else ["Keiner", "Mo: Beine", "Di: OK", "Mi: PO", "Do: OK", "Fr: Beine"].index(saved_values[f"EXTRA_DAY_{i}"]),
+                              key=f"ex_day_{i}")
+        if ex_name:
+            extra_exercises[f"EXTRA_{i}"] = {"name": ex_name, "day": ex_day}
+
+# --- SIDEBAR: 1RM SETUP (Werte kommen aus Cloud) ---
+st.sidebar.header(f"⚙️ Gewichte: {user_choice}")
+rms = {}
+for k in base_keys:
+    val = float(saved_values.get(k, 50.0))
+    rms[k] = st.sidebar.number_input(f"1RM {name_map[k]} (kg)", value=val, step=2.5, key=f"rm_{k}")
+
+for k, info in extra_exercises.items():
+    val = float(saved_values.get(k, 50.0))
+    rms[k] = st.sidebar.number_input(f"1RM {info['name']} (kg)", value=val, step=2.5, key=f"rm_{k}")
+
+# --- DER SPEICHER-MECHANISMUS (Aktualisiert das Google Sheet vollständig) ---
+if st.sidebar.button("💾 ALLES IN CLOUD SPEICHERN"):
+    # Erstelle ein Dictionary für alle Daten
+    data_to_save = rms.copy()
+    # Namen der Basis-Übungen hinzufügen
+    for k, v in name_map.items(): 
+        data_to_save[f"NAME_{k}"] = v
+    # Namen und Tage der Zusatz-Übungen hinzufügen
+    for i in range(1, 6):
+        key = f"EXTRA_{i}"
+        if key in extra_exercises:
+            data_to_save[f"EXTRA_NAME_{i}"] = extra_exercises[key]["name"]
+            data_to_save[f"EXTRA_DAY_{i}"] = extra_exercises[key]["day"]
+        else:
+            data_to_save[f"EXTRA_NAME_{i}"] = ""
+            data_to_save[f"EXTRA_DAY_{i}"] = "Keiner"
+    
+    # In DataFrame umwandeln und Cloud-Update triggern
+    df = pd.DataFrame([data_to_save])
     conn.update(worksheet=user_choice, data=df)
-    st.sidebar.success("Erfolgreich gespeichert!")
+    st.sidebar.success(f"Daten für {user_choice} wurden in Google Sheets überschrieben!")
+    st.cache_data.clear()
 
 # --- BERECHNUNG ---
 def calc(val, force_heavy=False):
-    if force_heavy or is_heavy_ok:
-        f = 0.75 + (0.05 * (woche - 1))
-    else:
-        f = 0.55
+    f = (0.75 + (0.05 * (woche - 1))) if (force_heavy or is_heavy_ok) else 0.55
     return round(val * f, 1)
+
+def show_extras(day_name):
+    for k, info in extra_exercises.items():
+        if info["day"] == day_name:
+            st.metric(info["name"], f"{calc(rms[k], True)} kg", "Zusatzübung | 3 Sätze")
 
 tabs = st.tabs(["Mo: Beine", "Di: OK", "Mi: PO", "Do: OK", "Fr: Beine"])
 
-# --- MONTAG: BEINE ---
-with tabs[0]:
-    st.markdown('<div class="cardio-box">🏃 Cardio: 30 Min Stairmaster (Pflicht)</div>', unsafe_allow_html=True)
-    st.metric("Beinstrecker", f"{calc(rms['BS'], True)} kg", "4 Sätze | 8-12 Wdh | 120s Pause")
-    st.metric("Hack Squat (Schräg)", f"{calc(rms['HS'], True)} kg", "4 Sätze | 8-12 Wdh | 120s Pause")
-    st.metric("Beinpresse (Schulterbreit)", f"{calc(rms['BP'], True)} kg", "3 Sätze | 8-12 Wdh | 120s Pause")
-    st.metric("Bulgarian Split Squats", f"{calc(rms['BSS'], True)} kg", "3 Sätze | 10-12 Wdh | 120s Pause")
-    st.metric("Beinbeuger liegend", f"{calc(rms['BB'], True)} kg", "3 Sätze | 8-12 Wdh | 120s Pause")
-    st.metric("Adduktoren", f"{calc(rms['AD'], True)} kg", "3 Sätze | 12-15 Wdh | 90s Pause")
-    st.metric("Sissy Squat", f"{calc(rms['SS'], True)} kg", "3 Sätze | Max Wdh | 90s Pause")
+# --- ANZEIGE DER TAGE (Keine Kürzungen!) ---
+with tabs[0]: # MONTAG
+    st.markdown('<div class="cardio-box">🏃 Cardio: 30 Min Stairmaster</div>', unsafe_allow_html=True)
+    for k in ["BS", "HS", "BP", "BSS", "BB", "AD", "SS"]:
+        st.metric(name_map[k], f"{calc(rms[k], True)} kg", "4 Sätze | 8-12 Wdh | 120s Pause")
+    show_extras("Mo: Beine")
 
-# --- DIENSTAG: OK ---
-with tabs[1]:
+with tabs[1]: # DIENSTAG
     st.markdown('<div class="cardio-box">🏃 Cardio: 30 Min Wahlweise</div>', unsafe_allow_html=True)
     r = "8-12 Wdh | 90s" if is_heavy_ok else "15-20 Wdh | 60s"
-    st.metric("Rudern Seil (Eng)", f"{calc(rms['RE'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Rudern Seil (Breit)", f"{calc(rms['RB'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Brustpresse", f"{calc(rms['BR'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Seitheben (Seil)", f"{calc(rms['SH'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Hintere Schulter (Seil)", f"{calc(rms['HSH'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Trizepsdrücken (Seil)", f"{calc(rms['TD'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Incline Bizeps Curls", f"{calc(rms['BC'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Hammer Curls (Seil)", f"{calc(rms['HC'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Bauch: Plank", "Körpergewicht", "3 Sätze | Max Zeit | 60s Pause")
+    for k in ["RE", "RB", "BR", "SH", "HSH", "TD", "BC", "HC"]:
+        st.metric(name_map[k], f"{calc(rms[k])} kg", f"3 Sätze | {r}")
+    st.metric("Bauch: Plank", "Körpergewicht", "3 Sätze | Max Zeit")
+    show_extras("Di: OK")
 
-# --- MITTWOCH: PO ---
-with tabs[2]:
-    st.markdown('<div class="cardio-box">🏃 Cardio: 30 Min Stairmaster (Pflicht)</div>', unsafe_allow_html=True)
-    st.metric("Hipthrusts", f"{calc(rms['HT'], True)} kg", "4 Sätze | 10-12 Wdh | 120s Pause")
-    st.metric("RDL", f"{calc(rms['RDL'], True)} kg", "3 Sätze | 10-12 Wdh | 120s Pause")
-    st.metric("Abduktoren (90° & 75°)", f"{calc(rms['ABD'], True)} kg", "4 Sätze | 12-15 Wdh | 90s Pause")
-    st.metric("Kickbacks (Gerade)", f"{calc(rms['KB'], True)} kg", "3 Sätze | 12-15 Wdh | 60s Pause")
-    st.metric("Kickbacks 45°", f"{calc(rms['KB45'], True)} kg", "3 Sätze | 12-15 Wdh | 60s Pause")
+with tabs[2]: # MITTWOCH
+    st.markdown('<div class="cardio-box">🏃 Cardio: 30 Min Stairmaster</div>', unsafe_allow_html=True)
+    for k in ["HT", "RDL", "ABD", "KB", "KB45"]:
+        st.metric(name_map[k], f"{calc(rms[k], True)} kg", "3-4 Sätze | 10-15 Wdh | 90-120s")
+    show_extras("Mi: PO")
 
-# --- DONNERSTAG: OK ---
-with tabs[3]:
+with tabs[3]: # DONNERSTAG
     st.markdown('<div class="cardio-box">🏃 Cardio: 30 Min Wahlweise</div>', unsafe_allow_html=True)
     r = "8-12 Wdh | 90s" if is_heavy_ok else "15-20 Wdh | 60s"
-    st.metric("Rudern Seil (Eng)", f"{calc(rms['RE'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Rudern Seil (Breit)", f"{calc(rms['RB'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Brustpresse", f"{calc(rms['BR'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Seitheben (Seil)", f"{calc(rms['SH'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Hintere Schulter (Seil)", f"{calc(rms['HSH'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Trizepsdrücken (Seil)", f"{calc(rms['TD'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Incline Bizeps Curls", f"{calc(rms['BC'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Hammer Curls (Seil)", f"{calc(rms['HC'])} kg", f"3 Sätze | {r} Pause")
-    st.metric("Bauch: Plank", "Körpergewicht", "3 Sätze | Max Zeit | 60s Pause")
+    for k in ["RE", "RB", "BR", "SH", "HSH", "TD", "BC", "HC"]:
+        st.metric(name_map[k], f"{calc(rms[k])} kg", f"3 Sätze | {r}")
+    show_extras("Do: OK")
 
-# --- FREITAG: BEINE ---
-with tabs[4]:
-    st.markdown('<div class="cardio-box">🏃 Cardio: 30 Min Stairmaster (Pflicht)</div>', unsafe_allow_html=True)
-    st.metric("Beinstrecker", f"{calc(rms['BS'], True)} kg", "4 Sätze | 8-12 Wdh | 120s Pause")
-    st.metric("Hack Squat (Schräg)", f"{calc(rms['HS'], True)} kg", "4 Sätze | 8-12 Wdh | 120s Pause")
-    st.metric("Beinpresse (Schulterbreit)", f"{calc(rms['BP'], True)} kg", "3 Sätze | 8-12 Wdh | 120s Pause")
-    st.metric("Bulgarian Split Squats", f"{calc(rms['BSS'], True)} kg", "3 Sätze | 10-12 Wdh | 120s Pause")
-    st.metric("Beinbeuger liegend", f"{calc(rms['BB'], True)} kg", "3 Sätze | 8-12 Wdh | 120s Pause")
-    st.metric("Adduktoren", f"{calc(rms['AD'], True)} kg", "3 Sätze | 12-15 Wdh | 90s Pause")
-    st.metric("Sissy Squat", f"{calc(rms['SS'], True)} kg", "3 Sätze | Max Wdh | 90s Pause")
+with tabs[4]: # FREITAG
+    st.markdown('<div class="cardio-box">🏃 Cardio: 30 Min Stairmaster</div>', unsafe_allow_html=True)
+    for k in ["BS", "HS", "BP", "BSS", "BB", "AD", "SS"]:
+        st.metric(name_map[k], f"{calc(rms[k], True)} kg", "4 Sätze | 8-12 Wdh | 120s Pause")
+    show_extras("Fr: Beine")
